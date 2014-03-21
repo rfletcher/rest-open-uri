@@ -1,6 +1,7 @@
 require 'uri'
 require 'stringio'
 require 'time'
+require 'net/http'
 
 module Kernel
   private
@@ -95,14 +96,33 @@ module OpenURI
   Options = {
     :proxy => true,
     :proxy_http_basic_authentication => true,
+    :method => true,
     :progress_proc => true,
     :content_length_proc => true,
     :http_basic_authentication => true,
+    :body => true,
     :read_timeout => true,
     :ssl_ca_cert => nil,
     :ssl_verify_mode => nil,
     :ftp_active_mode => false,
     :redirect => true,
+  }
+
+  # xxx: I'd like a better way of representing this trivial mapping.
+  Methods = {
+    :copy => Net::HTTP::Copy,
+    :delete => Net::HTTP::Delete,
+    :get => Net::HTTP::Get,
+    :head => Net::HTTP::Head,
+    :lock => Net::HTTP::Lock,
+    :mkcol => Net::HTTP::Mkcol,
+    :options => Net::HTTP::Options,
+    :post => Net::HTTP::Post,
+    :propfind => Net::HTTP::Propfind,
+    :proppatch => Net::HTTP::Proppatch,
+    :put => Net::HTTP::Put,
+    :trace => Net::HTTP::Trace,
+    :unlock => Net::HTTP::Unlock,
   }
 
   def OpenURI.check_options(options) # :nodoc:
@@ -112,6 +132,11 @@ module OpenURI
         raise ArgumentError, "unrecognized option: #{k}"
       end
     }
+
+    m = options[:method]
+    if m && !Methods[m]
+      raise ArgumentError, "unrecognized HTTP method symbol: #{m}"
+    end
   end
 
   def OpenURI.scan_open_optional_arguments(*rest) # :nodoc:
@@ -257,7 +282,6 @@ module OpenURI
     header = {}
     options.each {|k, v| header[k] = v if String === k }
 
-    require 'net/http'
     klass = Net::HTTP
     if URI::HTTP === target
       # HTTP or HTTPS
@@ -304,7 +328,10 @@ module OpenURI
 
     resp = nil
     http.start {
-      req = Net::HTTP::Get.new(request_uri, header)
+      methodclass = Methods[options[:method] || :get]
+      req = methodclass.new(request_uri, header)
+      req.body = options[:body] if methodclass::REQUEST_HAS_BODY
+
       if options.include? :http_basic_authentication
         user, pass = options[:http_basic_authentication]
         req.basic_auth user, pass
