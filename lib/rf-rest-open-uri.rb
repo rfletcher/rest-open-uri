@@ -5,9 +5,9 @@ require 'net/http'
 
 module Kernel
   private
-  alias open_uri_original_open open # :nodoc:
+  alias rest_open_uri_original_open open # :nodoc:
   class << self
-    alias open_uri_original_open open # :nodoc:
+    alias rest_open_uri_original_open open # :nodoc:
   end
 
   # Allows the opening of various resources including URIs.
@@ -33,7 +33,7 @@ module Kernel
           (uri = URI.parse(name)).respond_to?(:open)
       uri.open(*rest, &block)
     else
-      open_uri_original_open(name, *rest, &block)
+      rest_open_uri_original_open(name, *rest, &block)
     end
   end
   module_function :open
